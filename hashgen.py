@@ -1,26 +1,24 @@
 import os
 import shutil
 import hashlib
+import argparse
 from pathlib import Path
 
 
 def hashgen_file(filename):
-    """
-    :return: file sha1 hash
-    """
     hash = hashlib.sha1()
+    if not args.quiet:
+        print(f"Generating hash for: {filename}")
     with open(filename, mode='rb') as file:
-        for buf in file.read(128000):
-            hash.update(str(buf).encode())
+        while True:
+            buffer = file.read(524288000)
+            hash.update(buffer)
+            if not buffer:
+                break
     return hash.hexdigest()
 
 
 def file_array(path, is_sha1_file):
-    """
-    :param path: working directory
-    :param is_sha1_file: .sha1 or any other
-    :return: file list
-    """
     if is_sha1_file:
         return [file for file in Path(path).iterdir() if file.is_file() and file.name.endswith('.sha1')]
     else:
@@ -29,14 +27,15 @@ def file_array(path, is_sha1_file):
 
 def new_files(src, dst):
     """
-    :return: список файлов, которые есть в обоих папках,
-    и список файлов, которые есть только в source
+    :return: files list that are in both folders
+         and files list that are only in source
     """
     src_array = file_array(src, False)
     dst_array = file_array(dst, False)
 
     dst_list = [file.name for file in dst_array]
     src_list = [file.name for file in src_array]
+
     for file in dst_list:
         if file in src_list:
             src_list.remove(file)
@@ -45,20 +44,20 @@ def new_files(src, dst):
 
 def exist_files_check(src, dst, file_list):
     """
-    Сверяем хэши общих файлов для source и destination.
-    :return: лист файлов source,
-    чей хэш изменился по сравнению с destination
+    Checking hashes of shared file_list for source and destination.
+    :return: files list in source whose hash is different from destination
     """
     src_dict = {}
     dst_dict = {}
 
     for file in file_list:
-        with open(Path(src + '\\' + file + ".sha1"), 'r') as s:
+        with open(Path(f"{src}\\{file}.sha1"), 'r') as s:
             string = s.readline()
-            src_dict[string.split(" ")[1]] = string.split(" ")[0]
-        with open(Path(dst + '\\' + file + ".sha1"), 'r') as d:
+            src_dict[string.split("  ")[1]] = string.split("  ")[0]
+        with open(Path(f"{dst}\\{file}.sha1"), 'r') as d:
             string = d.readline()
-            dst_dict[string.split(" ")[1]] = string.split(" ")[0]
+            dst_dict[string.split("  ")[1]] = string.split("  ")[0]
+
     diff_list = []
     for name, sha in dst_dict.items():
         if src_dict[name] != sha:
@@ -68,81 +67,78 @@ def exist_files_check(src, dst, file_list):
 
 if __name__ == '__main__':
     """
-    1 - sync mode. Стереть в source хэши, посчитать заново.
-    Файлы в source, не совпадающие с destination - в лист для копирования.
-    Для новых файлов которых нет в destination - Считаем хэш, пишем в лист для копирования
+    1 - sync mode. Erase hashes in source, calc again.
+    Files in the source that don't match the destination - put into copy list.
+    New files that are not in the destination - calc the hash, put into copy list.
     2 - append mode.
-    Файлы в source, не совпадающие с destination не трогаем.
-    Для новых файлов которых нет в destination - Считаем хэш, пишем в лист для копирования
+    Files in the source that don't match the destination - do not touch.
+    New files that are not in the destination - calc the hash, put into copy list.
     3 - full sync mode
-    Стереть в destination файлы, которых нет в source.
-    Стереть в source хэши, посчитать заново.
-    Файлы в source, не совпадающие с destination - в лист для копирования.
-    Для новых файлов которых нет в destination - Считаем хэш, пишем в лист для копирования
+    Sync mode + Delete files in the destination that are not in the source.
     """
 
-    # TODO argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source")
+    parser.add_argument("destination")
+    parser.add_argument("-s", "--sync", action="store_true", help="Hash & copy new and changed files")
+    parser.add_argument("-a", "--append", action="store_true", help="Hash & copy new files only. Default.")
+    parser.add_argument("-f", "--fullsync", action="store_true", help="Full sync source and destination")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
 
-    source = "D:\\Test"
-    destination = "c:\\test"
+    args = parser.parse_args()
 
-    # 1 - sync
-    # 2 - append
-    # 3 - full sync
-    mode = 1
+    if not args.sync and not args.append and not args.fullsync:
+        args.append = True
 
-    # [0] - exist, [1] - new
-    # Разделили файлы в source на которых нет в destination и которые есть
-
-    # что добавить в dest
-    sl = new_files(source, destination)
-    print(sl)
+    print()
+    sl = new_files(args.source, args.destination)
+    if not args.quiet:
+        if sl[1]:
+            print("New files in source: ")
+            for i in sl[1]:
+                print(i)
+            print()
 
     for_copy = []
 
-    # Если full sync, убираем из destination файлы
-    if mode == 1 or mode == 3:
-        vv = new_files(destination, source)
-        print(vv)
+    if args.sync or args.fullsync:
+        vv = new_files(args.destination, args.source)
+        if len(vv[1]):
+            if not args.quiet:
+                print("Files that are not in the source: ")
+                for x in vv[1]:
+                    print(x)
+                print()
         for x in vv[1]:
-            if mode == 3:
-                os.remove(Path(destination + '\\' + x))
-                os.remove(Path(destination + '\\' + x + ".sha1"))
+            if args.fullsync:
+                if not args.quiet:
+                    print("Removing these files...")
+                    print()
+                os.remove(Path(f"{args.destination}\\{x}"))
+                os.remove(Path(f"{args.destination}\\{x}.sha1"))
             sl[0].remove(x)
 
-    print(sl)
-
-    if mode == 1 or mode == 3:
-        # Работаем с имеющимися там и там файлами
-        # Стереть в source хэши, посчитать заново
+    if args.sync or args.fullsync:
         for x in sl[0]:
-            os.remove(Path(source + '\\' + x + ".sha1"))
-            sha1sum = hashgen_file(Path(source + '\\' + x))
-            sha1filename = f"{x}.sha1"
-            with open(Path(source + '\\' + sha1filename), 'w', encoding="utf8") as sha1file:
-                sha1file.write(sha1sum + " " + x)
-        # Сравниваем хэши имеющихся файлов
-        dl = exist_files_check(source, destination, sl[0])
-
-        # Файлы в source, не совпадающие с destination - в лист для копирования
+            os.remove(Path(f"{args.source}\\{x}.sha1"))
+            sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
+            with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
+                sha1file.write(sha1sum + "  " + x)
+        dl = exist_files_check(args.source, args.destination, sl[0])
         for x in dl:
             for_copy.append(x)
 
-        print(for_copy)
-
-    # Для новых файлов которых нет в destination
-    # Считаем хэш, пишем в лист для копирования
     for x in sl[1]:
-        sha1sum = hashgen_file(Path(source + '\\' + x))
-        sha1filename = f"{x}.sha1"
-        with open(Path(source + '\\' + sha1filename), 'w', encoding="utf8") as sha1file:
-            sha1file.write(sha1sum + " " + x)
+        sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
+        with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
+            sha1file.write(sha1sum + "  " + x)
         for_copy.append(x)
 
-    print(for_copy)
+    print()
+    for x in for_copy:
+        if not args.quiet:
+            print(f"Copying file {x}")
+        shutil.copy(f"{args.source}\\{x}", args.destination)
+        shutil.copy(f"{args.source}\\{x}.sha1", args.destination)
 
-    # Пишем лист для копирования с хэшами в destination
-    for i in for_copy:
-        shutil.copy(source + '\\' + i, destination)
-        shutil.copy(source + '\\' + i + ".sha1", destination)
 
