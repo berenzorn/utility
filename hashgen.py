@@ -60,7 +60,7 @@ def exist_files_check(src, dst, file_list):
 
     diff_list = []
     for name, sha in dst_dict.items():
-        if src_dict[name] != sha:
+        if src_dict[name.rstrip()] != sha:
             diff_list.append(name)
     return diff_list
 
