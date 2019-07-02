@@ -20,9 +20,15 @@ def hashgen_file(filename):
 
 def file_array(path, is_sha1_file):
     if is_sha1_file:
-        return [file for file in Path(path).iterdir() if file.is_file() and file.name.endswith('.sha1')]
+        try:
+            return [file for file in Path(path).iterdir() if file.is_file() and file.name.endswith('.sha1')]
+        except FileNotFoundError:
+            return False
     else:
-        return [file for file in Path(path).iterdir() if file.is_file() and not file.name.endswith('.sha1')]
+        try:
+            return [file for file in Path(path).iterdir() if file.is_file() and not file.name.endswith('.sha1')]
+        except FileNotFoundError:
+            return False
 
 
 def new_files(src, dst):
@@ -33,8 +39,11 @@ def new_files(src, dst):
     src_array = file_array(src, False)
     dst_array = file_array(dst, False)
 
-    dst_list = [file.name for file in dst_array]
-    src_list = [file.name for file in src_array]
+    try:
+        dst_list = [file.name for file in dst_array]
+        src_list = [file.name for file in src_array]
+    except TypeError:
+        return False
 
     for file in dst_list:
         if file in src_list:
@@ -51,12 +60,15 @@ def exist_files_check(src, dst, file_list):
     dst_dict = {}
 
     for file in file_list:
-        with open(Path(f"{src}\\{file}.sha1"), 'r') as s:
-            string = s.readline()
-            src_dict[string.split("  ")[1]] = string.split("  ")[0]
-        with open(Path(f"{dst}\\{file}.sha1"), 'r') as d:
-            string = d.readline()
-            dst_dict[string.split("  ")[1]] = string.split("  ")[0]
+        try:
+            with open(Path(f"{src}\\{file}.sha1"), 'r') as s:
+                string = s.readline()
+                src_dict[string.split("  ")[1]] = string.split("  ")[0]
+            with open(Path(f"{dst}\\{file}.sha1"), 'r') as d:
+                string = d.readline()
+                dst_dict[string.split("  ")[1]] = string.split("  ")[0]
+        except FileNotFoundError:
+            return False
 
     diff_list = []
     for name, sha in dst_dict.items():
@@ -91,54 +103,62 @@ if __name__ == '__main__':
         args.append = True
 
     print()
-    sl = new_files(args.source, args.destination)
-    if not args.quiet:
-        if sl[1]:
-            print("New files in source: ")
-            for i in sl[1]:
-                print(i)
-            print()
+    if(Path(f"{args.source}")) and (Path(f"{args.destination}")):
+        sl = new_files(args.source, args.destination)
+    else:
+        print("Path is not found")
+        sl = False
 
-    for_copy = []
-
-    if args.sync or args.fullsync:
-        vv = new_files(args.destination, args.source)
-        if len(vv[1]):
-            if not args.quiet:
-                print("Files that are not in the source: ")
-                for x in vv[1]:
-                    print(x)
+    if sl:
+        if not args.quiet:
+            if sl[1]:
+                print("New files in source: ")
+                for i in sl[1]:
+                    print(i)
                 print()
-        for x in vv[1]:
-            if args.fullsync:
-                if not args.quiet:
-                    print("Removing these files...")
-                    print()
-                os.remove(Path(f"{args.destination}\\{x}"))
-                os.remove(Path(f"{args.destination}\\{x}.sha1"))
-            sl[0].remove(x)
 
-    if args.sync or args.fullsync:
-        for x in sl[0]:
-            os.remove(Path(f"{args.source}\\{x}.sha1"))
+        for_copy = []
+
+        if args.sync or args.fullsync:
+            vv = new_files(args.destination, args.source)
+            if len(vv[1]):
+                if not args.quiet:
+                    print("Files that are not in the source: ")
+                    for x in vv[1]:
+                        print(x)
+                    print()
+            for x in vv[1]:
+                if args.fullsync:
+                    if not args.quiet:
+                        print("Removing these files...")
+                        print()
+                    try:
+                        os.remove(Path(f"{args.destination}\\{x}.sha1"))
+                        os.remove(Path(f"{args.destination}\\{x}"))
+                    except FileNotFoundError:
+                        pass
+                sl[0].remove(x)
+
+        if args.sync or args.fullsync:
+            for x in sl[0]:
+                os.remove(Path(f"{args.source}\\{x}.sha1"))
+                sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
+                with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
+                    sha1file.write(sha1sum + "  " + x)
+            dl = exist_files_check(args.source, args.destination, sl[0])
+            for x in dl:
+                for_copy.append(x)
+
+        for x in sl[1]:
             sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
             with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
                 sha1file.write(sha1sum + "  " + x)
-        dl = exist_files_check(args.source, args.destination, sl[0])
-        for x in dl:
             for_copy.append(x)
 
-    for x in sl[1]:
-        sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
-        with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
-            sha1file.write(sha1sum + "  " + x)
-        for_copy.append(x)
-
-    print()
-    for x in for_copy:
-        if not args.quiet:
-            print(f"Copying file {x}")
-        shutil.copy(f"{args.source}\\{x}", args.destination)
-        shutil.copy(f"{args.source}\\{x}.sha1", args.destination)
-
+        print()
+        for x in for_copy:
+            if not args.quiet:
+                print(f"Copying file {x}")
+            shutil.copy(f"{args.source}\\{x}", args.destination)
+            shutil.copy(f"{args.source}\\{x}.sha1", args.destination)
 
