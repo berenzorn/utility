@@ -11,7 +11,10 @@ def hashgen_file(filename):
         print(f"Generating hash for: {filename}")
     with open(filename, mode='rb') as file:
         while True:
-            buffer = file.read(524288000)
+            try:
+                buffer = file.read(524288000)
+            except MemoryError:
+                return None
             hash.update(buffer)
             if not buffer:
                 break
@@ -97,6 +100,8 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--fullsync", action="store_true", help="Full sync source and destination")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
 
+    # TODO mem buffer arg
+
     args = parser.parse_args()
 
     if not args.sync and not args.append and not args.fullsync:
@@ -143,16 +148,22 @@ if __name__ == '__main__':
             for x in sl[0]:
                 os.remove(Path(f"{args.source}\\{x}.sha1"))
                 sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
-                with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
-                    sha1file.write(sha1sum + "  " + x)
+                if sha1sum is not None:
+                    with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
+                        sha1file.write(sha1sum + "  " + x)
+                else:
+                    break
             dl = exist_files_check(args.source, args.destination, sl[0])
             for x in dl:
                 for_copy.append(x)
 
         for x in sl[1]:
             sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
-            with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
-                sha1file.write(sha1sum + "  " + x)
+            if sha1sum is not None:
+                with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
+                    sha1file.write(sha1sum + "  " + x)
+            else:
+                break
             for_copy.append(x)
 
         print()
