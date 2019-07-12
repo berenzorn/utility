@@ -5,14 +5,14 @@ import argparse
 from pathlib import Path
 
 
-def hashgen_file(filename):
+def hashgen_file(filename, bufsize):
     hash = hashlib.sha1()
     if not args.quiet:
         print(f"Generating hash for: {filename}")
     with open(filename, mode='rb') as file:
         while True:
             try:
-                buffer = file.read(524288000)
+                buffer = file.read(bufsize)
             except MemoryError:
                 return None
             hash.update(buffer)
@@ -99,40 +99,44 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--append", action="store_true", help="Hash & copy new files only. Default.")
     parser.add_argument("-f", "--fullsync", action="store_true", help="Full sync source and destination")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
-
-    # TODO mem buffer arg
+    parser.add_argument("-b", type=int, help="Buffer size in MB (default 100)")
 
     args = parser.parse_args()
+
+    if args.buffer:
+        buf_size = args.buffer * 1048576
+    else:
+        buf_size = 100 * 1048576
 
     if not args.sync and not args.append and not args.fullsync:
         args.append = True
 
     print()
     if(Path(f"{args.source}")) and (Path(f"{args.destination}")):
-        sl = new_files(args.source, args.destination)
+        source_list = new_files(args.source, args.destination)
     else:
         print("Path is not found")
-        sl = False
+        source_list = False
 
-    if sl:
+    if source_list:
         if not args.quiet:
-            if sl[1]:
+            if source_list[1]:
                 print("New files in source: ")
-                for i in sl[1]:
+                for i in source_list[1]:
                     print(i)
                 print()
 
         for_copy = []
 
         if args.sync or args.fullsync:
-            vv = new_files(args.destination, args.source)
-            if len(vv[1]):
+            vice_versa = new_files(args.destination, args.source)
+            if len(vice_versa[1]):
                 if not args.quiet:
                     print("Files that are not in the source: ")
-                    for x in vv[1]:
+                    for x in vice_versa[1]:
                         print(x)
                     print()
-            for x in vv[1]:
+            for x in vice_versa[1]:
                 if args.fullsync:
                     if not args.quiet:
                         print("Removing these files...")
@@ -142,23 +146,23 @@ if __name__ == '__main__':
                         os.remove(Path(f"{args.destination}\\{x}"))
                     except FileNotFoundError:
                         pass
-                sl[0].remove(x)
+                source_list[0].remove(x)
 
         if args.sync or args.fullsync:
-            for x in sl[0]:
+            for x in source_list[0]:
                 os.remove(Path(f"{args.source}\\{x}.sha1"))
-                sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
+                sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size)
                 if sha1sum is not None:
                     with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
                         sha1file.write(sha1sum + "  " + x)
                 else:
                     break
-            dl = exist_files_check(args.source, args.destination, sl[0])
-            for x in dl:
+            dest_list = exist_files_check(args.source, args.destination, source_list[0])
+            for x in dest_list:
                 for_copy.append(x)
 
-        for x in sl[1]:
-            sha1sum = hashgen_file(Path(f"{args.source}\\{x}"))
+        for x in source_list[1]:
+            sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size)
             if sha1sum is not None:
                 with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
                     sha1file.write(sha1sum + "  " + x)
