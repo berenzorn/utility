@@ -95,18 +95,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("source")
     parser.add_argument("destination")
-    parser.add_argument("-s", "--sync", action="store_true", help="Hash & copy new and changed files")
-    parser.add_argument("-a", "--append", action="store_true", help="Hash & copy new files only. Default.")
-    parser.add_argument("-f", "--fullsync", action="store_true", help="Full sync source and destination")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-s", "--sync", action="store_true", help="Hash & copy new and changed files")
+    group.add_argument("-a", "--append", action="store_true", help="Hash & copy new files only. Default.")
+    group.add_argument("-f", "--fullsync", action="store_true", help="Full sync source and destination")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
-    parser.add_argument("-b", type=int, help="Buffer size in MB (default 100)")
+    parser.add_argument("-b", type=int, dest="buffer", metavar=" BUFFER", help="Buffer size in MB", default=100)
 
     args = parser.parse_args()
 
-    if args.buffer:
-        buf_size = args.buffer * 1048576
-    else:
-        buf_size = 100 * 1048576
+    buf_size = args.buffer * 1048576
 
     if not args.sync and not args.append and not args.fullsync:
         args.append = True
