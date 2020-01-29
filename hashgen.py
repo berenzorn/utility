@@ -5,31 +5,38 @@ import argparse
 from pathlib import Path
 
 
-def hashgen_file(filename, bufsize):
+def hashgen_file(filename, bufsize, quiet):
+    if bufsize <= 0:
+        bufsize = 1024 ** 2
     hash = hashlib.sha1()
-    if not args.quiet:
+    if not quiet:
         print(f"Generating hash for: {filename}")
-    with open(filename, mode='rb') as file:
-        while True:
-            try:
-                buffer = file.read(bufsize)
-            except MemoryError:
-                return None
-            hash.update(buffer)
-            if not buffer:
-                break
+    try:
+        with open(filename, mode='rb') as file:
+            while True:
+                try:
+                    buffer = file.read(bufsize)
+                except MemoryError:
+                    return None
+                hash.update(buffer)
+                if not buffer:
+                    break
+    except FileNotFoundError:
+        return False
     return hash.hexdigest()
 
 
 def file_array(path, is_sha1_file):
     if is_sha1_file:
         try:
-            return [file for file in Path(path).iterdir() if file.is_file() and file.name.endswith('.sha1')]
+            return [file for file in Path(path).iterdir()
+                    if file.is_file() and file.name.endswith('.sha1')]
         except FileNotFoundError:
             return False
     else:
         try:
-            return [file for file in Path(path).iterdir() if file.is_file() and not file.name.endswith('.sha1')]
+            return [file for file in Path(path).iterdir()
+                    if file.is_file() and not file.name.endswith('.sha1')]
         except FileNotFoundError:
             return False
 
@@ -149,7 +156,7 @@ if __name__ == '__main__':
         if args.sync or args.fullsync:
             for x in source_list[0]:
                 os.remove(Path(f"{args.source}\\{x}.sha1"))
-                sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size)
+                sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size, args.quiet)
                 if sha1sum is not None:
                     with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
                         sha1file.write(sha1sum + "  " + x)
@@ -160,7 +167,7 @@ if __name__ == '__main__':
                 for_copy.append(x)
 
         for x in source_list[1]:
-            sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size)
+            sha1sum = hashgen_file(Path(f"{args.source}\\{x}"), buf_size, args.quiet)
             if sha1sum is not None:
                 with open(Path(f"{args.source}\\{x}.sha1"), 'w', encoding="utf8") as sha1file:
                     sha1file.write(sha1sum + "  " + x)
