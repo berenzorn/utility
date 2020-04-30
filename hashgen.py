@@ -90,10 +90,10 @@ def exist_files_check(src, dst, file_list):
 if __name__ == '__main__':
     """
     1 - sync mode. Erase hashes in source, calc again.
-    Files in the source that don't match the destination - put into copy list.
+    Modified files in the source compared to the destination - put into copy list.
     New files that are not in the destination - calc the hash, put into copy list.
     2 - append mode.
-    Files in the source that don't match the destination - do not touch.
+    Modified files in the source compared to the destination - do not touch.
     New files that are not in the destination - calc the hash, put into copy list.
     3 - full sync mode
     Sync mode + Delete files in the destination that are not in the source.
