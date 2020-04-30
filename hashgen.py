@@ -141,11 +141,10 @@ if __name__ == '__main__':
                     for x in vice_versa[1]:
                         print(x)
                     print()
+                    print("Removing these files...")
+                    print()
             for x in vice_versa[1]:
                 if args.fullsync:
-                    if not args.quiet:
-                        print("Removing these files...")
-                        print()
                     try:
                         os.remove(Path(f"{args.destination}\\{x}.sha1"))
                         os.remove(Path(f"{args.destination}\\{x}"))
