@@ -149,7 +149,8 @@ if __name__ == '__main__':
     if args.append and not args.quiet:
         print()
     if args.nocopy:
-        for x in source_list[0]:
+        # this one + [1] -> all files in source
+        for x in sorted(list(set(source_list[0]) - set(source_list[2]))):
             sha1_write(args.source, x, buffer_size, args.quiet)
     for x in source_list[1]:
         sha1_write(args.source, x, buffer_size, args.quiet)
