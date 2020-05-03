@@ -5,9 +5,9 @@ import hashgen as hg
 class HashgenTest(unittest.TestCase):
 
     def test_hashgen_file(self):
-        self.assertEqual(hg.hashgen_file('test', 100, True), '9e4bdc87f1408f4e2444e8d5b4461813e939095f')
-        self.assertEqual(hg.hashgen_file('test', -1, True), '9e4bdc87f1408f4e2444e8d5b4461813e939095f')
-        self.assertEqual(hg.hashgen_file('test', 0, True), '9e4bdc87f1408f4e2444e8d5b4461813e939095f')
+        self.assertEqual(hg.hashgen_file('test', 100, True), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
+        self.assertEqual(hg.hashgen_file('test', -1, True), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
+        self.assertEqual(hg.hashgen_file('test', 0, True), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
         self.assertEqual(hg.hashgen_file('tst', 0, True), False)
 
     def test_file_array(self):
