@@ -2,8 +2,8 @@ import os
 import hashlib
 import argparse
 import shutil
+import logging
 from pathlib import Path
-
 
 def file_array(path):
     return [file for file in Path(path).iterdir()
@@ -14,16 +14,14 @@ def hashgen_file(filename, buffsize, quiet, log):
     if not quiet:
         print(f"Generating hash for: {filename}")
     if log:
-        with open("hashgen.log", 'a') as log:
-            log.write(f"Generating hash for: {filename}\n")
+        logging.debug(f"Generating hash for: {filename}")
     with open(filename, mode='rb') as file:
         while True:
             try:
                 buffer = file.read(buffsize)
             except MemoryError:
                 print("Not enough memory.")
-                with open("hashgen.log", 'a') as log:
-                    log.write("Not enough memory.\n")
+                logging.error("Not enough memory.")
                 raise SystemExit(0)
             filehash.update(buffer)
             if not buffer:
@@ -99,7 +97,9 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--log", action="store_true", help="Write output to log file")
     parser.add_argument("-b", type=int, dest="buffer", metavar=" BUFFER", help="Buffer size in MB", default=100)
     args = parser.parse_args()
-
+    if args.log:
+        logging.basicConfig(filename="hashgen.log", filemode='a', format='%(asctime)s %(message)s',
+                            datefmt='%m.%d.%Y %H:%M:%S', level=logging.DEBUG)
     if args.buffer <= 0:
         args.buffer = 1
     buffer_size = args.buffer * 1024**2
@@ -108,10 +108,7 @@ if __name__ == '__main__':
         args.append = True
 
     if args.log:
-        with open("hashgen.log", 'a') as log:
-            log.write("\n----------\n")
-            log.write("New run...\n")
-
+        logging.debug("-=-=-=-=-=-=-=-=-")
 
     if(Path(args.source).exists()) and (Path(args.destination).exists()):
         # 0 - files in src and dst, 1 - new in src, 2 - not in src
@@ -119,8 +116,7 @@ if __name__ == '__main__':
     else:
         print("No such source or destination folder.")
         if args.log:
-            with open("hashgen.log", 'a') as log:
-                log.write("No such source or destination folder.\n")
+            logging.error("No such source or destination folder.")
         raise SystemExit(0)
 
     if not args.nocopy:
@@ -131,11 +127,10 @@ if __name__ == '__main__':
                     print(i)
         if args.log:
             if source_list[1]:
-                with open("hashgen.log", 'a') as log:
-                    log.write("\nNew files in source: \n")
-                    for i in source_list[1]:
-                        log.write(f"{i}\n")
-
+                logging.debug("")
+                logging.debug("New files in source:")
+                for i in source_list[1]:
+                    logging.debug(f"{i}")
 
     for_copy = []
     if args.sync or args.fullsync:
@@ -147,12 +142,14 @@ if __name__ == '__main__':
                 if args.fullsync:
                     print("\nRemoving these files...")
             if args.log:
-                with open('hashgen.log', 'a') as log:
-                    log.write("\nFiles that are not in the source: \n")
-                    for x in source_list[2]:
-                        log.write(f"{x}\n")
-                    if args.fullsync:
-                        log.write("\nRemoving these files...\n")
+                logging.debug("")
+                logging.debug("Files that are not in the source:")
+                for x in source_list[2]:
+                    logging.debug(f"{x}")
+                if args.fullsync:
+                    logging.debug("")
+                    logging.debug("Removing these files...")
+
             for x in source_list[2]:
                 if args.fullsync:
                     try:
@@ -165,8 +162,7 @@ if __name__ == '__main__':
         if not args.quiet:
             print()
         if args.log:
-            with open("hashgen.log", 'a') as log:
-                log.write("\n")
+            logging.debug("")
         for x in source_list[0]:
             try:
                 os.remove(Path(f"{args.source}\\{x}.sha1"))
@@ -181,8 +177,7 @@ if __name__ == '__main__':
     if args.append and not args.quiet:
         print()
     if args.append and args.log:
-        with open("hashgen.log", 'a') as log:
-            log.write("\n")
+        logging.debug("")
     if args.nocopy:
         # this one + [1] -> all files in source
         for x in sorted(list(set(source_list[0]) - set(source_list[2]))):
@@ -195,13 +190,12 @@ if __name__ == '__main__':
         if not args.quiet:
             print()
         if args.log:
-            with open("hashgen.log", 'a') as log:
-                log.write("\n")
+            logging.debug("")
         for x in for_copy:
             if not args.quiet:
                 print(f"Copying file {x}")
             if args.log:
-                with open('hashgen.log', 'a') as log:
-                    log.write(f"Copying file {x}\n")
+                logging.debug(f"Copying file {x}")
             shutil.copy(f"{args.source}\\{x}", args.destination)
             shutil.copy(f"{args.source}\\{x}.sha1", args.destination)
+        # logging.debug("")
