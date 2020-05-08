@@ -5,9 +5,11 @@ import shutil
 import logging
 from pathlib import Path
 
+
 def file_array(path):
     return [file for file in Path(path).iterdir()
             if file.is_file() and not file.name.endswith('.sha1')]
+
 
 def hashgen_file(filename, buffsize, quiet, log):
     filehash = hashlib.sha1()
@@ -28,6 +30,7 @@ def hashgen_file(filename, buffsize, quiet, log):
                 break
     return filehash.hexdigest()
 
+
 def new_files(src, dst):
     """
     :return: files list that are in both folders,
@@ -42,11 +45,13 @@ def new_files(src, dst):
     # 0 - files in src and dst, 1 - new in src, 2 - not in src
     return dst_list, sd_diff, ds_diff
 
+
 def sha1_write(path, name, buffer, quiet, log):
     sha1sum = hashgen_file(Path(f"{path}\\{name}"), buffer, quiet, log)
     with open(Path(f"{path}\\{name}.sha1"), 'w', encoding="utf8") as sha1file:
         sha1file.write(f"{sha1sum}   {name}")  # ← 3 spaces!
     return sha1sum
+
 
 def exist_files_check(src, dst, file_list, buffer, quiet, log):
     """
@@ -169,7 +174,8 @@ if __name__ == '__main__':
             except FileNotFoundError:
                 pass
             sha1_write(args.source, x, buffer_size, args.quiet, args.log)
-        dest_list = exist_files_check(args.source, args.destination, source_list[0], buffer_size, args.quiet, args.log)
+        dest_list = exist_files_check(args.source, args.destination, source_list[0],
+                                      buffer_size, args.quiet, args.log)
         if dest_list:
             for x in dest_list:
                 for_copy.append(x)
